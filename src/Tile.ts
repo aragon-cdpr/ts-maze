@@ -77,6 +77,12 @@ export class Tile {
     return image;
   }
 
+  public getAllowedDirections() {
+    return Object.keys(this.TILE_CONNECTIONS[this.type]).filter(
+      (direction) => this.TILE_CONNECTIONS[this.type][direction as Direction],
+    );
+  }
+
   protected calculateNeighbours(type: TileType): TileNeighbours {
     return {
       top: this.getMatchingTypes(type, "top"),

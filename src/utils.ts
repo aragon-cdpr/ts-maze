@@ -1,11 +1,9 @@
 import { Tile, TileType, type Direction } from "./Tile";
 
 export const drawGrid = async (
-  context: CanvasRenderingContext2D,
   tiles: Tile[],
-  plane: number[],
+  plane: any[],
   TilesCount: number,
-  CellSize: number,
 ) => {
   const loadImagePromises = tiles.map((tile) => {
     return new Promise<HTMLImageElement>((resolve) => {
@@ -14,18 +12,17 @@ export const drawGrid = async (
       };
     });
   });
-  const helper: any[] = new Array(plane.length).fill(undefined);
+  const helper: number[] = new Array(plane.length).fill(tiles.length);
 
   const upgradeNeighbours = (index: number, tile: Tile, dir: Direction) => {
-    if (helper[index] !== undefined && Array.isArray(helper[index])) {
-      helper[index] = tile.canTouch[dir].filter((item) =>
-        helper[index].includes(item),
+    if (plane[index] !== undefined && Array.isArray(plane[index])) {
+      plane[index] = tile.canTouch[dir].filter((item) =>
+        plane[index].includes(item),
       );
-
-      plane[index] = helper[index].length;
-    } else if (helper[index] === undefined) {
-      plane[index] = tile.canTouch[dir].length;
-      helper[index] = tile.canTouch[dir];
+      helper[index] = plane[index].length;
+    } else if (plane[index] === undefined) {
+      helper[index] = tile.canTouch[dir].length;
+      plane[index] = tile.canTouch[dir];
     }
   };
 
@@ -36,28 +33,21 @@ export const drawGrid = async (
     let cell = -1;
     if (i == 0) {
       cell = (Math.random() * plane.length) | 0;
-      if (helper[cell] === undefined) {
-        helper[cell] = Object.keys(TileType).filter(
+      if (plane[cell] === undefined) {
+        plane[cell] = Object.keys(TileType).filter(
           (type) => !isNaN(Number(type)),
         );
       }
     } else {
-      cell = plane.indexOf(Math.min(...plane));
+      cell = helper.indexOf(Math.min(...helper));
     }
-    const randomindex = (Math.random() * helper[cell].length) | 0;
-    const tile = tiles[helper[cell][randomindex]];
-    helper[cell] = tile;
-    plane[cell] = 1000;
-    context.drawImage(
-      tile.image,
-      (cell % TilesCount) * CellSize,
-      Math.floor(cell / TilesCount) * CellSize,
-      CellSize,
-      CellSize,
-    );
+    const randomindex = (Math.random() * plane[cell].length) | 0;
+    const tile = tiles[plane[cell][randomindex]];
+    plane[cell] = tile;
+    helper[cell] = 1000;
 
-    if (cell + 7 <= plane.length - 1) {
-      const index = cell + 7;
+    if (cell + TilesCount <= plane.length - 1) {
+      const index = cell + TilesCount;
       upgradeNeighbours(index, tile, "bottom");
     }
     if (cell - 1 >= 0 && cell % TilesCount !== 0) {
@@ -68,8 +58,8 @@ export const drawGrid = async (
       const index = cell + 1;
       upgradeNeighbours(index, tile, "right");
     }
-    if (cell - 7 >= 0) {
-      const index = cell - 7;
+    if (cell - TilesCount >= 0) {
+      const index = cell - TilesCount;
       upgradeNeighbours(index, tile, "top");
     }
   }

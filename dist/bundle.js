@@ -93,6 +93,9 @@
             image.src = source;
             return image;
         }
+        getAllowedDirections() {
+            return Object.keys(this.TILE_CONNECTIONS[this.type]).filter((direction) => this.TILE_CONNECTIONS[this.type][direction]);
+        }
         calculateNeighbours(type) {
             return {
                 top: this.getMatchingTypes(type, "top"),
@@ -122,7 +125,7 @@
         }
     }
 
-    const drawGrid = (context, tiles, plane, TilesCount, CellSize) => __awaiter(void 0, void 0, void 0, function* () {
+    const drawGrid = (tiles, plane, TilesCount) => __awaiter(void 0, void 0, void 0, function* () {
         const loadImagePromises = tiles.map((tile) => {
             return new Promise((resolve) => {
                 tile.image.onload = () => {
@@ -130,15 +133,15 @@
                 };
             });
         });
-        const helper = new Array(plane.length).fill(undefined);
+        const helper = new Array(plane.length).fill(tiles.length);
         const upgradeNeighbours = (index, tile, dir) => {
-            if (helper[index] !== undefined && Array.isArray(helper[index])) {
-                helper[index] = tile.canTouch[dir].filter((item) => helper[index].includes(item));
-                plane[index] = helper[index].length;
+            if (plane[index] !== undefined && Array.isArray(plane[index])) {
+                plane[index] = tile.canTouch[dir].filter((item) => plane[index].includes(item));
+                helper[index] = plane[index].length;
             }
-            else if (helper[index] === undefined) {
-                plane[index] = tile.canTouch[dir].length;
-                helper[index] = tile.canTouch[dir];
+            else if (plane[index] === undefined) {
+                helper[index] = tile.canTouch[dir].length;
+                plane[index] = tile.canTouch[dir];
             }
         };
         // Wait for all images to be loaded
@@ -147,20 +150,19 @@
             let cell = -1;
             if (i == 0) {
                 cell = (Math.random() * plane.length) | 0;
-                if (helper[cell] === undefined) {
-                    helper[cell] = Object.keys(TileType).filter((type) => !isNaN(Number(type)));
+                if (plane[cell] === undefined) {
+                    plane[cell] = Object.keys(TileType).filter((type) => !isNaN(Number(type)));
                 }
             }
             else {
-                cell = plane.indexOf(Math.min(...plane));
+                cell = helper.indexOf(Math.min(...helper));
             }
-            const randomindex = (Math.random() * helper[cell].length) | 0;
-            const tile = tiles[helper[cell][randomindex]];
-            helper[cell] = tile;
-            plane[cell] = 1000;
-            context.drawImage(tile.image, (cell % TilesCount) * CellSize, Math.floor(cell / TilesCount) * CellSize, CellSize, CellSize);
-            if (cell + 7 <= plane.length - 1) {
-                const index = cell + 7;
+            const randomindex = (Math.random() * plane[cell].length) | 0;
+            const tile = tiles[plane[cell][randomindex]];
+            plane[cell] = tile;
+            helper[cell] = 1000;
+            if (cell + TilesCount <= plane.length - 1) {
+                const index = cell + TilesCount;
                 upgradeNeighbours(index, tile, "bottom");
             }
             if (cell - 1 >= 0 && cell % TilesCount !== 0) {
@@ -171,8 +173,8 @@
                 const index = cell + 1;
                 upgradeNeighbours(index, tile, "right");
             }
-            if (cell - 7 >= 0) {
-                const index = cell - 7;
+            if (cell - TilesCount >= 0) {
+                const index = cell - TilesCount;
                 upgradeNeighbours(index, tile, "top");
             }
         }
@@ -182,17 +184,82 @@
         if (typeof document === "undefined" || typeof window === "undefined") {
             return;
         }
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", () => __awaiter(this, void 0, void 0, function* () {
             const canvas = document.querySelector("#maze");
             const PLANE_SIZE = 7;
             const CELL_SIZE = canvas.width / PLANE_SIZE;
             const context = canvas.getContext("2d");
             context.imageSmoothingEnabled = false;
             const tileTypes = Object.keys(TileType).filter((type) => isNaN(Number(type)));
-            const Plane = new Array(PLANE_SIZE * PLANE_SIZE).fill(tileTypes.length);
+            const renderPlane = (Plane) => {
+                Plane.forEach((tile, cell) => {
+                    context.drawImage(tile.image, (cell % PLANE_SIZE) * CELL_SIZE, Math.floor(cell / PLANE_SIZE) * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                });
+            };
+            const renderPlayer = (Player) => {
+                context.fillStyle = "red";
+                context.fillRect(CELL_SIZE * Player.x + CELL_SIZE / 2 - 8, CELL_SIZE * Player.y + CELL_SIZE / 2 - 8, 16, 16);
+            };
+            const Plane = new Array(PLANE_SIZE * PLANE_SIZE).fill(undefined);
+            const Player = {
+                x: 3,
+                y: 3,
+            };
+            const updatePlayer = (direction) => {
+                let currx = Player.x;
+                let curry = Player.y;
+                const currentPlayerTile = Plane[curry * PLANE_SIZE + currx];
+                const allowedDriections = currentPlayerTile.getAllowedDirections();
+                switch (direction) {
+                    case "up":
+                        if (allowedDriections.indexOf("top") != -1 && curry > 0) {
+                            curry--;
+                        }
+                        break;
+                    case "right":
+                        if (allowedDriections.indexOf(direction) != -1 &&
+                            currx < PLANE_SIZE - 1) {
+                            currx++;
+                        }
+                        break;
+                    case "down":
+                        if (allowedDriections.indexOf("bottom") != -1 &&
+                            curry < PLANE_SIZE - 1) {
+                            curry++;
+                        }
+                        break;
+                    case "left":
+                        if (allowedDriections.indexOf(direction) != -1 && currx > 0) {
+                            currx--;
+                        }
+                        break;
+                }
+                Player.x = currx;
+                Player.y = curry;
+            };
             const tiles = tileTypes.map((type) => new Tile(TileType[type], `./assets/tiles_colored/Tile${type}.png`));
-            drawGrid(context, tiles, Plane, PLANE_SIZE, CELL_SIZE);
-        });
+            yield drawGrid(tiles, Plane, PLANE_SIZE);
+            renderPlane(Plane);
+            renderPlayer(Player);
+            window.onkeypress = (event) => {
+                switch (event.key) {
+                    case "w":
+                        updatePlayer("up");
+                        break;
+                    case "a":
+                        updatePlayer("left");
+                        break;
+                    case "s":
+                        updatePlayer("down");
+                        break;
+                    case "d":
+                        updatePlayer("right");
+                        break;
+                }
+                renderPlane(Plane);
+                renderPlayer(Player);
+            };
+        }));
     })();
 
 })();
