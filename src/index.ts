@@ -9,7 +9,7 @@ import { Tile, TileType } from "./Tile";
   document.addEventListener("DOMContentLoaded", async () => {
     const canvas: HTMLCanvasElement = document.querySelector("#maze");
     const PLANE_SIZE = 7;
-    const CELL_SIZE = canvas.width / PLANE_SIZE;
+    const CELL_SIZE: number = canvas.width / PLANE_SIZE;
     const context: CanvasRenderingContext2D = canvas.getContext("2d");
     context.imageSmoothingEnabled = false;
     const tileTypes: string[] = Object.keys(TileType).filter((type) =>
