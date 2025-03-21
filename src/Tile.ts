@@ -1,4 +1,11 @@
-export type Direction = "top" | "right" | "bottom" | "left";
+export enum Direction {
+  top = "top",
+  right = "right",
+  bottom = "bottom",
+  left = "left",
+}
+
+export type Directions = keyof typeof Direction;
 
 type TileNeighbours = {
   top: TileType[];
@@ -79,20 +86,21 @@ export class Tile {
 
   public getAllowedDirections() {
     return Object.keys(this.TILE_CONNECTIONS[this.type]).filter(
-      (direction) => this.TILE_CONNECTIONS[this.type][direction as Direction],
+      (direction) => this.TILE_CONNECTIONS[this.type][direction as Directions],
     );
   }
 
   protected calculateNeighbours(type: TileType): TileNeighbours {
     return {
-      top: this.getMatchingTypes(type, "top"),
-      right: this.getMatchingTypes(type, "right"),
-      bottom: this.getMatchingTypes(type, "bottom"),
-      left: this.getMatchingTypes(type, "left"),
+      top: this.getMatchingTypes(type, Direction.top),
+      right: this.getMatchingTypes(type, Direction.right),
+      bottom: this.getMatchingTypes(type, Direction.bottom),
+      left: this.getMatchingTypes(type, Direction.left),
     };
   }
 
-  private getMatchingTypes(type: TileType, direction: Direction): TileType[] {
+  // Returns all tile types that can be connected by matching opposite directions states.
+  private getMatchingTypes(type: TileType, direction: Directions): TileType[] {
     return Object.keys(this.TILE_CONNECTIONS)
       .map(Number)
       .filter((otherType: TileType) => {
@@ -109,8 +117,8 @@ export class Tile {
       }) as TileType[];
   }
 
-  private oppositeDirection(direction: Direction): Direction {
-    const oppositeMap: Record<Direction, Direction> = {
+  private oppositeDirection(direction: Directions): Directions {
+    const oppositeMap: Record<Directions, Directions> = {
       top: "bottom",
       right: "left",
       bottom: "top",

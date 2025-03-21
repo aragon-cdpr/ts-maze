@@ -1,8 +1,11 @@
-import { Tile, TileType, type Direction } from "./Tile";
+import { type Directions, Tile, TileType } from "./Tile";
+
+type PossibleNeighbours = number[];
+export type Plane = (Tile | PossibleNeighbours | undefined)[];
 
 export const drawGrid = async (
   tiles: Tile[],
-  plane: any[],
+  plane: Plane,
   TilesCount: number,
 ) => {
   const loadImagePromises = tiles.map((tile) => {
@@ -12,15 +15,19 @@ export const drawGrid = async (
       };
     });
   });
-  const helper: number[] = new Array(plane.length).fill(tiles.length);
+  // Helper array to store amount of possible neighbours for each cell.
+  const helper: PossibleNeighbours = new Array(plane.length).fill(tiles.length);
 
-  const upgradeNeighbours = (index: number, tile: Tile, dir: Direction) => {
+  const upgradeNeighbours = (index: number, tile: Tile, dir: Directions) => {
     if (plane[index] !== undefined && Array.isArray(plane[index])) {
+      // If cell is an array of possible neighbours, get unique matching neighbours.
+      const possibleNeighbours: PossibleNeighbours = plane[index];
       plane[index] = tile.canTouch[dir].filter((item) =>
-        plane[index].includes(item),
+        possibleNeighbours.includes(item),
       );
       helper[index] = plane[index].length;
     } else if (plane[index] === undefined) {
+      // If cell is undefined, assign possible neighbours from tile type.
       helper[index] = tile.canTouch[dir].length;
       plane[index] = tile.canTouch[dir];
     }
@@ -30,19 +37,28 @@ export const drawGrid = async (
   await Promise.all(loadImagePromises);
 
   for (let i = 0; i < plane.length; i++) {
-    let cell = -1;
+    let cell: number = -1;
+    // First iteration, pick random cell and define all possible neighbours.
     if (i == 0) {
       cell = (Math.random() * plane.length) | 0;
       if (plane[cell] === undefined) {
         plane[cell] = Object.keys(TileType).filter(
           (type) => !isNaN(Number(type)),
-        );
+        ) as unknown as PossibleNeighbours;
       }
     } else {
+      // Next iterations, pick cell with the smallest amount of possible neighbours.
       cell = helper.indexOf(Math.min(...helper));
     }
-    const randomindex = (Math.random() * plane[cell].length) | 0;
-    const tile = tiles[plane[cell][randomindex]];
+    let randomindex: number = -1;
+
+    if (Array.isArray(plane[cell])) {
+      // If cell is an array of possible neighbours, pick random tile from it.
+      const planeCell = plane[cell] as number[];
+      randomindex = (Math.random() * planeCell.length) | 0;
+    }
+    // Assign random tile to the cell. Disqualify index from further iterations.
+    const tile: Tile = tiles[plane[cell][randomindex]];
     plane[cell] = tile;
     helper[cell] = 1000;
 

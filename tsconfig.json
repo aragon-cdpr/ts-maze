@@ -3,12 +3,12 @@
   "compilerOptions": {
     "module": "ES6",
     "esModuleInterop": true,
-    "target": "es6",
+    "target": "es2016",
     "moduleResolution": "node",
     "sourceMap": true,
     "outDir": "dist"
   },
-  "lib": ["es2015"],
+  "lib": ["es6", "dom", "es2016"],
   "watchOptions": {
     // Use native file system events for files and directories
     "watchFile": "useFsEvents",

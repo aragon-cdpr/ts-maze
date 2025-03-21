@@ -33,6 +33,13 @@
         return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
     };
 
+    var Direction;
+    (function (Direction) {
+        Direction["top"] = "top";
+        Direction["right"] = "right";
+        Direction["bottom"] = "bottom";
+        Direction["left"] = "left";
+    })(Direction || (Direction = {}));
     var TileType;
     (function (TileType) {
         TileType[TileType["Cross"] = 0] = "Cross";
@@ -98,12 +105,13 @@
         }
         calculateNeighbours(type) {
             return {
-                top: this.getMatchingTypes(type, "top"),
-                right: this.getMatchingTypes(type, "right"),
-                bottom: this.getMatchingTypes(type, "bottom"),
-                left: this.getMatchingTypes(type, "left"),
+                top: this.getMatchingTypes(type, Direction.top),
+                right: this.getMatchingTypes(type, Direction.right),
+                bottom: this.getMatchingTypes(type, Direction.bottom),
+                left: this.getMatchingTypes(type, Direction.left),
             };
         }
+        // Returns all tile types that can be connected by matching opposite directions states.
         getMatchingTypes(type, direction) {
             return Object.keys(this.TILE_CONNECTIONS)
                 .map(Number)
@@ -133,13 +141,17 @@
                 };
             });
         });
+        // Helper array to store amount of possible neighbours for each cell.
         const helper = new Array(plane.length).fill(tiles.length);
         const upgradeNeighbours = (index, tile, dir) => {
             if (plane[index] !== undefined && Array.isArray(plane[index])) {
-                plane[index] = tile.canTouch[dir].filter((item) => plane[index].includes(item));
+                // If cell is an array of possible neighbours, get unique matching neighbours.
+                const possibleNeighbours = plane[index];
+                plane[index] = tile.canTouch[dir].filter((item) => possibleNeighbours.includes(item));
                 helper[index] = plane[index].length;
             }
             else if (plane[index] === undefined) {
+                // If cell is undefined, assign possible neighbours from tile type.
                 helper[index] = tile.canTouch[dir].length;
                 plane[index] = tile.canTouch[dir];
             }
@@ -148,6 +160,7 @@
         yield Promise.all(loadImagePromises);
         for (let i = 0; i < plane.length; i++) {
             let cell = -1;
+            // First iteration, pick random cell and define all possible neighbours.
             if (i == 0) {
                 cell = (Math.random() * plane.length) | 0;
                 if (plane[cell] === undefined) {
@@ -155,9 +168,16 @@
                 }
             }
             else {
+                // Next iterations, pick cell with the smallest amount of possible neighbours.
                 cell = helper.indexOf(Math.min(...helper));
             }
-            const randomindex = (Math.random() * plane[cell].length) | 0;
+            let randomindex = -1;
+            if (Array.isArray(plane[cell])) {
+                // If cell is an array of possible neighbours, pick random tile from it.
+                const planeCell = plane[cell];
+                randomindex = (Math.random() * planeCell.length) | 0;
+            }
+            // Assign random tile to the cell. Disqualify index from further iterations.
             const tile = tiles[plane[cell][randomindex]];
             plane[cell] = tile;
             helper[cell] = 1000;
@@ -186,24 +206,26 @@
         }
         document.addEventListener("DOMContentLoaded", () => __awaiter(this, void 0, void 0, function* () {
             const canvas = document.querySelector("#maze");
-            const PLANE_SIZE = 7;
+            const PLAYER_SIZE_FACTOR = 0.15;
+            const PLANE_SIZE = 10;
             const CELL_SIZE = canvas.width / PLANE_SIZE;
+            const PLAYER_SIZE = CELL_SIZE * PLAYER_SIZE_FACTOR;
             const context = canvas.getContext("2d");
             context.imageSmoothingEnabled = false;
             const tileTypes = Object.keys(TileType).filter((type) => isNaN(Number(type)));
-            const renderPlane = (Plane) => {
-                Plane.forEach((tile, cell) => {
+            const renderPlane = (plane) => {
+                plane.forEach((tile, cell) => {
                     context.drawImage(tile.image, (cell % PLANE_SIZE) * CELL_SIZE, Math.floor(cell / PLANE_SIZE) * CELL_SIZE, CELL_SIZE, CELL_SIZE);
                 });
             };
             const renderPlayer = (Player) => {
                 context.fillStyle = "red";
-                context.fillRect(CELL_SIZE * Player.x + CELL_SIZE / 2 - 8, CELL_SIZE * Player.y + CELL_SIZE / 2 - 8, 16, 16);
+                context.fillRect(CELL_SIZE * (Player.x + 0.5) - PLAYER_SIZE / 2, CELL_SIZE * (Player.y + 0.5) - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE);
             };
             const Plane = new Array(PLANE_SIZE * PLANE_SIZE).fill(undefined);
             const Player = {
-                x: 3,
-                y: 3,
+                x: Math.floor(PLANE_SIZE / 2),
+                y: Math.floor(PLANE_SIZE / 2),
             };
             const updatePlayer = (direction) => {
                 let currx = Player.x;
@@ -211,24 +233,24 @@
                 const currentPlayerTile = Plane[curry * PLANE_SIZE + currx];
                 const allowedDriections = currentPlayerTile.getAllowedDirections();
                 switch (direction) {
-                    case "up":
-                        if (allowedDriections.indexOf("top") != -1 && curry > 0) {
+                    case Direction.top:
+                        if (allowedDriections.indexOf(direction) != -1 && curry > 0) {
                             curry--;
                         }
                         break;
-                    case "right":
+                    case Direction.right:
                         if (allowedDriections.indexOf(direction) != -1 &&
                             currx < PLANE_SIZE - 1) {
                             currx++;
                         }
                         break;
-                    case "down":
-                        if (allowedDriections.indexOf("bottom") != -1 &&
+                    case Direction.bottom:
+                        if (allowedDriections.indexOf(direction) != -1 &&
                             curry < PLANE_SIZE - 1) {
                             curry++;
                         }
                         break;
-                    case "left":
+                    case Direction.left:
                         if (allowedDriections.indexOf(direction) != -1 && currx > 0) {
                             currx--;
                         }
@@ -244,16 +266,16 @@
             window.onkeypress = (event) => {
                 switch (event.key) {
                     case "w":
-                        updatePlayer("up");
+                        updatePlayer(Direction.top);
                         break;
                     case "a":
-                        updatePlayer("left");
+                        updatePlayer(Direction.left);
                         break;
                     case "s":
-                        updatePlayer("down");
+                        updatePlayer(Direction.bottom);
                         break;
                     case "d":
-                        updatePlayer("right");
+                        updatePlayer(Direction.right);
                         break;
                 }
                 renderPlane(Plane);

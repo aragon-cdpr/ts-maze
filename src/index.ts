@@ -1,5 +1,5 @@
-import { drawGrid } from "./utils";
-import { Tile, TileType } from "./Tile";
+import { drawGrid, type Plane } from "./utils";
+import { Tile, TileType, Direction, type Directions } from "./Tile";
 
 (function () {
   if (typeof document === "undefined" || typeof window === "undefined") {
@@ -8,16 +8,18 @@ import { Tile, TileType } from "./Tile";
 
   document.addEventListener("DOMContentLoaded", async () => {
     const canvas: HTMLCanvasElement = document.querySelector("#maze");
-    const PLANE_SIZE = 7;
+    const PLAYER_SIZE_FACTOR = 0.15;
+    const PLANE_SIZE = 10;
     const CELL_SIZE: number = canvas.width / PLANE_SIZE;
+    const PLAYER_SIZE: number = CELL_SIZE * PLAYER_SIZE_FACTOR;
     const context: CanvasRenderingContext2D = canvas.getContext("2d");
     context.imageSmoothingEnabled = false;
     const tileTypes: string[] = Object.keys(TileType).filter((type) =>
       isNaN(Number(type)),
     );
 
-    const renderPlane = (Plane: Tile[] | undefined[] | number[]) => {
-      Plane.forEach((tile: Tile, cell) => {
+    const renderPlane = (plane: Plane) => {
+      plane.forEach((tile: Tile, cell) => {
         context.drawImage(
           tile.image,
           (cell % PLANE_SIZE) * CELL_SIZE,
@@ -31,33 +33,31 @@ import { Tile, TileType } from "./Tile";
     const renderPlayer = (Player: { x: number; y: number }) => {
       context.fillStyle = "red";
       context.fillRect(
-        CELL_SIZE * Player.x + CELL_SIZE / 2 - 8,
-        CELL_SIZE * Player.y + CELL_SIZE / 2 - 8,
-        16,
-        16,
+        CELL_SIZE * (Player.x + 0.5) - PLAYER_SIZE / 2,
+        CELL_SIZE * (Player.y + 0.5) - PLAYER_SIZE / 2,
+        PLAYER_SIZE,
+        PLAYER_SIZE,
       );
     };
 
-    const Plane: Tile[] | undefined[] | number[] = new Array(
-      PLANE_SIZE * PLANE_SIZE,
-    ).fill(undefined);
+    const Plane: Plane = new Array(PLANE_SIZE * PLANE_SIZE).fill(undefined);
     const Player = {
-      x: 3,
-      y: 3,
+      x: Math.floor(PLANE_SIZE / 2),
+      y: Math.floor(PLANE_SIZE / 2),
     };
 
-    const updatePlayer = (direction: string) => {
+    const updatePlayer = (direction: Directions) => {
       let currx = Player.x;
       let curry = Player.y;
       const currentPlayerTile: Tile = Plane[curry * PLANE_SIZE + currx] as Tile;
       const allowedDriections = currentPlayerTile.getAllowedDirections();
       switch (direction) {
-        case "up":
-          if (allowedDriections.indexOf("top") != -1 && curry > 0) {
+        case Direction.top:
+          if (allowedDriections.indexOf(direction) != -1 && curry > 0) {
             curry--;
           }
           break;
-        case "right":
+        case Direction.right:
           if (
             allowedDriections.indexOf(direction) != -1 &&
             currx < PLANE_SIZE - 1
@@ -65,15 +65,15 @@ import { Tile, TileType } from "./Tile";
             currx++;
           }
           break;
-        case "down":
+        case Direction.bottom:
           if (
-            allowedDriections.indexOf("bottom") != -1 &&
+            allowedDriections.indexOf(direction) != -1 &&
             curry < PLANE_SIZE - 1
           ) {
             curry++;
           }
           break;
-        case "left":
+        case Direction.left:
           if (allowedDriections.indexOf(direction) != -1 && currx > 0) {
             currx--;
           }
@@ -97,16 +97,16 @@ import { Tile, TileType } from "./Tile";
     window.onkeypress = (event: KeyboardEvent) => {
       switch (event.key) {
         case "w":
-          updatePlayer("up");
+          updatePlayer(Direction.top);
           break;
         case "a":
-          updatePlayer("left");
+          updatePlayer(Direction.left);
           break;
         case "s":
-          updatePlayer("down");
+          updatePlayer(Direction.bottom);
           break;
         case "d":
-          updatePlayer("right");
+          updatePlayer(Direction.right);
           break;
         default:
           break;
